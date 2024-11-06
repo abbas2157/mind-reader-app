@@ -145,7 +145,42 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
+List<String> phrases = [
+    "Analyzing brainwaves...",
+    "Scanning mermories...",
+    "Calculating probabilities...",
+    "Decoding thoughts...",
+  ];
 
+  late StreamController<String> _streamController;
+  late Stream<String> _phraseStream;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _streamController = StreamController<String>();
+    _phraseStream = _streamController.stream;
+    _startPhrases();
+  }
+
+  @override
+  void dispose() {
+    _streamController.close();
+    super.dispose();
+  }
+
+  void _startPhrases() {
+    Timer.periodic(Duration(seconds: 2), (timer) {
+      if (_currentIndex < phrases.length) {
+        _streamController.add(phrases[_currentIndex]);
+        _currentIndex++;
+      } else {
+        timer.cancel();
+        _streamController.close();
+      }
+    });
+  }
   void _showMindReadingDialog() {
     if (_controller.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -174,22 +209,43 @@ class _HomePageState extends State<HomePage> {
                       Colors.lightGreenAccent),
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  "Reading your mind...",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black54,
-                  ),
-                ),
+                StreamBuilder<String>(
+              stream: _phraseStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Text(
+                    "Loading...",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black54,
+                    ),
+                  );
+                } else if (snapshot.hasData) {
+                  return Text(
+                    snapshot.data!,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black54,
+                    ),
+                  );
+                } else {
+                  return Container();
+                }
+              },
+            ),
               ],
             ),
           ),
         );
       },
-    );
+    ).then((_) {
+    // Reset the stream and controller after the dialog is closed
+    _streamController.close();
+  });
 
-    Timer(const Duration(seconds: 3), () {
+    Timer(const Duration(seconds: 5), () {
       Navigator.pop(context); // Close progress dialog
       _showResultDialog();
     });
